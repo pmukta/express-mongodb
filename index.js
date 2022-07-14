@@ -1,12 +1,19 @@
-require("dotenv").config(); 
 const express = require("express");
 const app = express();
-
-
 const mongoose = require("mongoose");
-mongoose.connect("mongodb://localhost/users",{
+app.use(express.json())
+
+mongoose.connect("mongodb://localhost:27017/Emp",{
     useNewUrlParser: true,
     useUnifiedTopology: true
+},(err) => {
+    if(!err)
+    {
+        console.log("connected to db")
+    }
+    else{
+        console.log("error connecting to db")
+    }
 });
 
 const employeeSchema = new mongoose.Schema({
@@ -17,29 +24,36 @@ const employeeSchema = new mongoose.Schema({
 
 const Employee = mongoose.model('Employee', employeeSchema);
 
-const emp = new Employee({
-    employeeId: 123,
-    employeeName: "Yashika",
-    employeeDesignation: "Student"
-});
-emp.save().then(() => console.log("One entry added"));
-
-app.post('/', (req,res) => {
-    const emp = new Employee();
-    emp.employeeId = req.body.employeeId;
-    emp.employeeName = req.body.employeeName;
-    emp.employeeDesignation = req.body.employeeDesignation;
-    emp.save( (err, data) => {
-        if(err){
-            console.log(error);
-        }
-        else{
-            res.send("Data Inserted")
-        }
-    });
+app.post('/insert', async(req,res) => {
+    const emp = new Employee({
+        employeeId:req.body.employeeId,
+        employeeName:req.body.employeeName,
+        employeeDesignation:req.body.employeeDesignation
+    })
+    
+    const val = await emp.save();
+             res.json(val);
 })
 
-app.get('/', (req, res) => {
+app.get('/fetch/:employeeId', (req, res) => {
+    fetchId=req.params.employeeId;
+    Employee.find(({employeeId:fetchId}), function(err,val){
+        if(err){
+            res.send("ERROR")
+        }
+        else{
+        if(val.length == 0){
+            res.send("Data does not Exist")
+        }
+        else{
+            res.send(val);
+        }
+    }
+    })
+});
+
+
+app.get('/fetchAll', (req, res) => {
     Employee.find({}, (err, found) => {
         if (!err) {
             res.send(found);
@@ -49,42 +63,45 @@ app.get('/', (req, res) => {
     })
 });
 
-app.delete('/delete', (req,res) => {
-    Employee.remove({employeeId: 17035},
-     (err, data) => {
-         if(err){
-             console.log(err);
-         }
-         else{
-             res.send(data);
-         }
-     })
-})
- 
-app.post('/delete', function(req, res) {
-    Employee.findByIdAndDelete((req.body.employeeId), 
+
+app.delete('/delete/:employeeId', function(req, res) {
+    let delId = req.params.employeeId;
+    Employee.findOneAndDelete(({employeeId:delId}), 
     function(err, data) {
         if(err){
-            console.log(err);
+            res.send("Error")
+        }else{
+        if(data==null){
+            res.send("ID does not exist")
         }
-        else{
+      else{
             res.send(data);
-            console.log("Data Deleted!");
-        }
+      }
+    }
     });  
 });
 
-app.post('/update', function(req, res) {
-    Employee.findByIdAndUpdate(req.body.employeeId, 
-    {employeeName:req.body.employeeName}, function(err, data) {
+app.put('/update/:employeeId', async(req, res) => {
+    let upId = req.params.employeeId;
+    let newId=req.body.employeeId;
+    let upName = req.body.employeeName;
+    let upDesignation = req.body.employeeDesignation;
+    Employee.findOneAndUpdate({employeeId:upId},{$set:{employeeId:newId,employeeName:upName,employeeDesignation:upDesignation}},
+         {new:true}, (err,data)=>{
         if(err){
-            console.log(err);
+            res.send("ERROR")
+        }else{
+        if(data==null)
+        {
+            res.send("Nothing found")
         }
         else{
-            res.send(data);
-            console.log("Data updated!");
+            res.send(data)
         }
-    });  
+    }
+    })
+ 
 });
 
-app.listen(3000, () => console.log("Server is running"));
+
+app.listen(3000, () => console.log("Server is running on port 3000"));
